@@ -1,22 +1,46 @@
 # Google Scholar Spider Documentation
 
-Google Scholar Spider是一个基于Python的工具，根据给定的关键字检索Google Scholar上发表的文章数据。它允许用户将结果保存为CSV文件，绘制结果，并通过年份和引用次数过滤结果。
+Google Scholar Spider是一个基于Python的工具，根据给定的关键字检索Google Scholar上发表的文章数据，通过年份和引用次数过滤结果，并下载论文pdf文件。它允许用户将爬虫数据存储至mysql中，并将pdf文件存储至minio中。
 
-## News
+## News Feature
 
-本仓库是2023年在训练学术大模型的时候，顺手写的谷歌学术爬虫，之后这个项目基本搁置了，但爬虫的价值还是很大的，如果有人有相关意向或者想对本仓库进行大翻新，可以联系我微信:db277500。
 
-另外最近在做出海的AI SaaS产品，建了一个小的交流群，欢迎加入
+![爬虫数据持久化](assets%2Fimages%2Fdb.png)
+![论文pdf下载](assets%2Fimages%2Fpdf.png)
 
-![](https://raw.githubusercontent.com/JessyTsu1/JessyTsu1/main/images/AI_saas_group.jpg)
+## 安装配置
+首先安装文件所需依赖
+```
+pip install -r requirements.txt
+```
+
+
+然后根据/tool/.env.tmp
+创建/tool/.env文件 并配置mysql数据库和minio的连接信息
+
+需提前准备好mysql数据库和minio服务
+```
+minio_url = 'localhost:9000'  # e.g., 'play.min.io'
+miaccess_key = 'minioadmin'
+misecret_key = 'minioadmin'
+bucket_name = 'test-scholar-pdf'
+dbusername= 'root'
+dbpassword= 'yourpassword
+dbHost= 'localhost'
+dbPort='3306'
+dbName = 'google_scholar'
+```
 
 ## Usage
+
 
 可以通过运行命令行中的`google_scholar_spider`函数并传递任何所需的参数来使用Google Scholar Spider。可用的参数包括：
 
 --**kw** <keyword> (default "machine learning") 要搜索的关键字。
 
 --**nresults** <number of results> (default 50) 要在Google Scholar上搜索的文章数。
+
+--**initrank** <initial rank> (default 0) 要从中开始检索文章的排名。
 
 --**notsavecsv** 使用此标志以不保存结果到CSV文件的方式打印结果。
 
@@ -35,10 +59,10 @@ Google Scholar Spider是一个基于Python的工具，根据给定的关键字�
 ## Examples
 
 ```
-python google_scholar_spider.py --kw "deep learning" --nresults 30 --csvpath "./data" --sortby "cit/year" --plotresults 1
+python google_scholar_spider.py --kw "deep learning" --nresults 30 --initrank 50 --csvpath "./data" --sortby "cit/year" --plotresults 1 
 ```
 
-此命令在Google Scholar上搜索与“deep learning”相关的文章，检索30个结果，将结果保存到“./data”文件夹中的CSV文件中，按每年引用次数排序数据，并绘制结果。
+此命令在Google Scholar上搜索与“deep learning”相关的文章，从排名第50的文章开始，检索30个结果，按每年引用次数排序数据，并绘制结果。
 
 ## License
 
