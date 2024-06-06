@@ -64,6 +64,20 @@ python google_scholar_spider.py --kw "deep learning" --nresults 30 --initrank 50
 
 此命令在Google Scholar上搜索与“deep learning”相关的文章，从排名第50的文章开始，检索30个结果，按每年引用次数排序数据，并绘制结果。
 
+## 其他
+项目使用了selenium和chromedriver来模拟浏览器行为，以便绕过Google Scholar的反爬虫机制。因此，确保您的计算机上安装了Chrome浏览器和chromedriver。
+```
+ROBOT_KW = ['unusual traffic from your computer network', 'not a robot']
+```
+
+论文pdf文件的下载并不总是成功的，这可能是由于Google Scholar的反爬虫机制，或者是由于pdf文件不可用。在这种情况下，爬虫将跳过下载pdf文件并继续检索其他文章。
+常见无法获取的pdf
+```
+Failed to download PDF, status code: 403,  无下载该文件的权限
+Failed to download PDF, status code: 404,  路径错误
+Failed to download PDF, status code: 418,  服务器检测到爬虫并拒绝请求
+```
+
 ## License
 
 Google Scholar Spider根据MIT许可证发布。
