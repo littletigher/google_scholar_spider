@@ -1,18 +1,19 @@
 import argparse
 import datetime
 import os
-import sys
 import time
 import warnings
 from dataclasses import dataclass
 from time import sleep
 from typing import List, Optional
-
 import matplotlib.pyplot as plt
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 from tqdm import tqdm
+from tool.pdf_link_save import save_to_minio,save_to_local
+from tool.spider_metadata_save import save_to_mysql
+import shortuuid
 
 now = datetime.datetime.now()
 current_year = now.year
@@ -32,12 +33,15 @@ class GoogleScholarConfig:
     keyword: str = "machine learning"
     nresults: int = 50
     save_csv: bool = True
+    save_mysql:bool = False
     csvpath: str = "."
     sortby: str = "Citations"
     plot_results: bool = False
     start_year: Optional[int] = None
     end_year: int = current_year
     debug: bool = False
+    init_rank: int = 0
+
 
 
 def google_scholar_spider(GoogleScholarConfig: GoogleScholarConfig):
@@ -63,6 +67,10 @@ def google_scholar_spider(GoogleScholarConfig: GoogleScholarConfig):
     if GoogleScholarConfig.save_csv:
         save_data_to_csv(data_ranked, GoogleScholarConfig.csvpath, GoogleScholarConfig.keyword)
 
+    # Save results to MySQL
+    if GoogleScholarConfig.save_mysql:
+        save_to_mysql(data_ranked)
+
 
 def get_command_line_args() -> GoogleScholarConfig:
     parser = argparse.ArgumentParser(description='Arguments')
@@ -82,19 +90,23 @@ def get_command_line_args() -> GoogleScholarConfig:
     parser.add_argument('--endyear', type=int, help='End year when searching. Default is current year')
     parser.add_argument('--debug', action='store_true',
                         help='Debug mode. Used for unit testing. It will get pages stored on web archive')
-
+    parser.add_argument('--initrank',type=int,
+                        help='use to start from a specific rank. Default is 0')
+    parser.add_argument('--save_mysql', action='store_true',help='save data to mysql')
     args, _ = parser.parse_known_args()
 
     return GoogleScholarConfig(
         keyword=args.kw if args.kw else GoogleScholarConfig.keyword,
         nresults=args.nresults if args.nresults else GoogleScholarConfig.nresults,
         save_csv=not args.notsavecsv,
+        save_mysql=args.save_mysql if args.save_mysql else GoogleScholarConfig.save_mysql,
         csvpath=args.csvpath if args.csvpath else GoogleScholarConfig.csvpath,
         sortby=args.sortby if args.sortby else GoogleScholarConfig.sortby,
         plot_results=args.plotresults,
         start_year=args.startyear if args.startyear else GoogleScholarConfig.start_year,
         end_year=args.endyear if args.endyear else GoogleScholarConfig.end_year,
-        debug=args.debug
+        debug=args.debug,
+        init_rank= args.initrank if args.initrank else GoogleScholarConfig.init_rank
     )
 
 
@@ -194,14 +206,14 @@ def fetch_data(GoogleScholarConfig: GoogleScholarConfig, session: requests.Sessi
     publisher: List[str] = []
     rank: List[int] = [0]
     describe: List[str] = []
+    pdfs: List[str] = []
+    pdf_path: List[str] = []
 
     # Initialize progress bar
     if pbar is not None:
         pbar.reset(total=GoogleScholarConfig.nresults)
-
     # Get content from number_of_results URLs
-    for n in range(0, GoogleScholarConfig.nresults, 10):
-
+    for n in range(GoogleScholarConfig.init_rank,GoogleScholarConfig.init_rank+GoogleScholarConfig.nresults, 10):
         if pbar is not None:
             pbar.update(10)
 
@@ -228,11 +240,25 @@ def fetch_data(GoogleScholarConfig: GoogleScholarConfig, session: requests.Sessi
         mydivs = soup.findAll("div", {"class": "gs_or"})
 
         for div in mydivs:
+
             try:
                 links.append(div.find('h3').find('a').get('href'))
             except:  # catch *all* exceptions
                 links.append('Look manually at: ' + url)
-
+            try:
+                pdfs.append(div.find('div', {'class': 'gs_or_ggsm'}).find('a').get('href'))
+            except: # catch all exceptions
+                pdfs.append('No PDF found')
+            try:# save
+                short_id = shortuuid.uuid()
+                file_save_path = GoogleScholarConfig.keyword.replace(' ', '_')+ '/' + div.find('h3').find('a').text +'_'+short_id+ '.pdf'
+                save_to_minio(
+                    file_path=div.find('div', {'class': 'gs_or_ggsm'}).find('a').get('href'),
+                    file_save_path=file_save_path
+                )
+                pdf_path.append(file_save_path)
+            except:
+                pdf_path.append('Cant download PDF')
             try:
                 title.append(div.find('h3').find('a').text)
             except:
@@ -275,8 +301,8 @@ def fetch_data(GoogleScholarConfig: GoogleScholarConfig, session: requests.Sessi
         # Delay
         sleep(0.5)
     # Create a dataset
-    data = pd.DataFrame(list(zip(author, title, citations, year, publisher, venue, describe, links)), index=rank[1:],
-                        columns=['Author', 'Title', 'Citations', 'Year', 'Publisher', 'Venue', 'describe', 'Source'])
+    data = pd.DataFrame(list(zip(pdfs,pdf_path,author, title, citations, year, publisher, venue, describe, links)), index=rank[1:],
+                        columns=['PDF','SavePath','Author', 'Title', 'Citations', 'Year', 'Publisher', 'Venue', 'describe', 'Source'])
     data.index.name = 'Rank'
     return data
 
@@ -311,6 +337,9 @@ def save_data_to_csv(data: pd.DataFrame, path: str, keyword: str) -> None:
     fpath_csv = os.path.join(path, keyword.replace(' ', '_') + '.csv')
     fpath_csv = fpath_csv[:MAX_CSV_FNAME]
     data.to_csv(fpath_csv, encoding='utf-8')
+
+
+
 
 
 if __name__ == '__main__':
