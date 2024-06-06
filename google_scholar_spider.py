@@ -32,8 +32,8 @@ ROBOT_KW = ['unusual traffic from your computer network', 'not a robot']
 class GoogleScholarConfig:
     keyword: str = "machine learning"
     nresults: int = 50
-    save_csv: bool = True
-    save_mysql:bool = False
+    save_csv: bool = False
+    save_mysql:bool = True
     csvpath: str = "."
     sortby: str = "Citations"
     plot_results: bool = False
