@@ -14,7 +14,8 @@ from tqdm import tqdm
 from tool.pdf_link_save import save_to_minio,save_to_local
 from tool.spider_metadata_save import save_to_mysql
 import shortuuid
-
+from log.logger import get_logger
+logger = get_logger()
 now = datetime.datetime.now()
 current_year = now.year
 MAX_CSV_FNAME = 255
@@ -343,14 +344,14 @@ def save_data_to_csv(data: pd.DataFrame, path: str, keyword: str) -> None:
 
 
 if __name__ == '__main__':
-    print("Getting command line arguments...")
     start = time.time()
     GoogleScholarConfig = get_command_line_args()
-    print("Running Google Scholar spider...")
+    logger.info("Running Google Scholar spider...")
+    logger.info(GoogleScholarConfig)
     google_scholar_spider(GoogleScholarConfig=GoogleScholarConfig)
     # with tqdm(total=GoogleScholarConfig.nresults) as pbar:
     #     google_scholar_spider(GoogleScholarConfig=GoogleScholarConfig, pbar=pbar)
 
     end = time.time()
-    print("Finished running Google Scholar spider!")
-    print(f"Time taken: {end - start:.2f} seconds")
+    logger.info("Finished running Google Scholar spider!")
+    logger.info(f"Time taken: {end - start:.2f} seconds")

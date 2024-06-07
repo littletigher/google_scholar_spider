@@ -7,7 +7,8 @@ from PIL import Image
 import io
 from dotenv import find_dotenv, load_dotenv
 import os
-
+from log.logger import get_logger
+logger = get_logger()
 # Load environment variables from .env file
 env_dist = os.environ
 load_dotenv(find_dotenv('.env'))
@@ -27,9 +28,9 @@ client = Minio(
 try:
     if not client.bucket_exists(bucket_name):
         client.make_bucket(bucket_name)
-    print(f"Bucket '{bucket_name}' is ready.")
+    logger.info(f"Bucket '{bucket_name}' is ready.")
 except S3Error as err:
-    print(f"Error creating bucket: {err}")
+    logger.error(f"Error creating bucket: {err}")
 
 # def save_to_local(file_path,file_save_path):
 #     # send_headers = {
@@ -54,7 +55,7 @@ def save_to_local(file_path,file_save_path):
 def save_to_minio(file_path, file_save_path):
     response = requests.get(file_path, stream=True)
     if response.status_code != 200:
-        print(f"Failed to download PDF, status code: {response.status_code}")
+        logger.warning(f"Failed to download PDF, status code: {response.status_code}")
         exit(1)
     try:
         # 使用BytesIO作为内存缓冲区来处理文件内容
@@ -67,9 +68,9 @@ def save_to_minio(file_path, file_save_path):
         # 直接从内存缓冲区上传到MinIO
         client.put_object(bucket_name, file_save_path, file_stream, length=int(response.headers['Content-Length']),
                           content_type=response.headers['Content-Type'])
-        print(f"Successfully uploaded PDF from {file_path} to {bucket_name}/{file_save_path}")
+        logger.info(f"Successfully uploaded PDF from {file_path} to {bucket_name}/{file_save_path}")
     except S3Error as err:
-        print(f"Error occurred while uploading to MinIO: {err}")
+        logger.warning(f"Error occurred while uploading to MinIO: {err}")
     finally:
         # 清理，关闭文件流
         file_stream.close()
